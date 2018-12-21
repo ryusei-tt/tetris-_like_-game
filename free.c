@@ -219,10 +219,7 @@ void moveBlock(int nextx, int nexty) {
 	}
 }
 
-//ブロックの固定
-void SetBlock(void) {
 
-}
 
 //衝突判定
 bool collision(int nextx, int nexty) {
