@@ -23,10 +23,10 @@ void create_block(void);  //落下するブロック生成
 void InitialScreen(void);   //画面の初期化
 void drawingBlock(void);   //ブロックの描画
 void moveBlock(int nextx, int nexty); //ブロックの移動
-void control(void);  //ブロックのコントロール
+void control(int key);  //ブロックのコントロール
 bool collision(int nextx, int nexty); //ブロックの衝突(移動先が空白でなければ移動できないなど)
 void SetBLock(void);    //ブロックの固定
-void TurnBlock(int key);   //ブロックの回転
+void TurnBlock();   //ブロックの回転
 void DeletBottom(void); //下の行を消す
 void StrageBlock(void); //ブロックの保存
 
@@ -91,7 +91,7 @@ int main() {
 	while (1) {
 		HgClear();
 		GameField();
-		if (collision(blockx, blocky-1)) {
+		if (collision(blockx, blocky-1) && blocky > 1) {
 			moveBlock(blockx, blocky-1);
 			drawingBlock();
 			blocky--;
@@ -101,7 +101,7 @@ int main() {
 			 blocky = FIRST_Y;
 			 create_block();
 			 drawingBlock();
-			 HgSleep(2.0);
+			 HgSleep(1.0);
 		 }
 	 }
 	HgGetChar();
@@ -219,8 +219,6 @@ void moveBlock(int nextx, int nexty) {
 	}
 }
 
-
-
 //衝突判定
 bool collision(int nextx, int nexty) {
 	int x,y;
@@ -230,6 +228,12 @@ bool collision(int nextx, int nexty) {
 			if (block[x][y] >= 1) {
 				//移動した後の座標が 0 以外なら移動できない
 				if (field[x+nextx][y+nexty] != 0) {
+					//ブロックの固定
+					for (x = 0; x < BLOCK_SIZE; x++) {
+						for (y = 0; y < BLOCK_SIZE; y++) {
+							field[blockx][blocky] = block[x][y];
+						}
+					}
 					return false;
 				}else{
 					break;
@@ -240,7 +244,42 @@ bool collision(int nextx, int nexty) {
 	return true;  //移動できる
 }
 
-void TurnBlock(int key) {
+//回転用関数
+void TurnBlock() {
+	int strage[BLOCK_SIZE][BLOCK_SIZE];  //ブロック保存用配列
+	int x,y;
+
+	//回転前を保存
+	for (x = 0; x < BLOCK_SIZE; x++) {
+		for (y = 0; y < BLOCK_SIZE; y++) {
+			strage[x][y] = block[x][y];
+		}
+	}
+	//ブロックの回転
+	for (x = 0; x < BLOCK_SIZE; x++) {
+		for (y = 0; y < BLOCK_SIZE; y++) {
+			block[x][y] = strage[BLOCK_SIZE-1-y][x];
+		}
+	}
+	//回転後が衝突するなら、回転前に戻して中止する
+	if (collision(blockx, blocky) == false) {
+		for (x = 0; x < BLOCK_SIZE; x++) {
+			for (y = 0; y < BLOCK_SIZE; y++) {
+				block[x][y] = strage[x][y];
+			}
+		}
+		return;
+	}
+	//回転後のブロックを field に読み込む
+	for (x = 0; x < BLOCK_SIZE; x++) {
+		for (y = 0; y < BLOCK_SIZE; y++) {
+			field[x+blockx][y+blocky] = block[x][y];
+		}
+	}
+}
+
+//ブロック操作関数
+void control(int key) {
 	//hgevent *event;
 
 }
