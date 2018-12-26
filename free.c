@@ -20,7 +20,7 @@
 
 void GameField(void);
 void create_block(void);  //落下するブロック生成
-void InitialScreen(void);   //画面の初期化
+void Initialfield(void);   //fieldの初期化
 void drawingBlock(void);   //ブロックの描画
 void moveBlock(int nextx, int nexty); //ブロックの移動
 void control(int key);  //ブロックのコントロール
@@ -78,20 +78,38 @@ int blockform[TYPE][BLOCK_SIZE][BLOCK_SIZE] = {
 };
 int linesum = 0; //消したラインの数
 int gameover = false; //ゲームオーバーのフラグ
+doubleLayer layers;  // ダブルバッファ用のデータ
+int windowID;  // ウィンドウの番号
+int layerID;  // レイヤーの番号
+
 
 /// main　関数 ///
 int main() {
-	HgOpen(600,750);
+	hgevent *event;
+	int key;
+
+	windowID = HgOpen(600,750);
+	layers = HgWAddDoubleLayer(windowID);  // ダブルバッファを作る
+	HgSetEventMask(HG_KEY_DOWN);
+
 	GameField();
-	InitialScreen();
+	Initialfield();
 	create_block();
 	drawingBlock();
 	HgSleep(1.0);
 
 	while (1) {
-		HgClear();
+		layerID = HgLSwitch(&layers);
+		event = HgEventNonBlocking();
+
+        HgLClear(layerID);
 		GameField();
-		if (collision(blockx, blocky-1) && blocky > 1) {
+		if (event != NULL) {
+		   key = event->ch;
+		   control(key);
+	   }
+
+		if (collision(blockx, blocky-1) && blocky >= 1) {
 			moveBlock(blockx, blocky-1);
 			drawingBlock();
 			blocky--;
@@ -111,18 +129,18 @@ int main() {
 
 //フィールドの描写
 void GameField(void){
-	HgSetFillColor(HG_SKYBLUE);
-	HgBoxFill(0,0,600,750,0);
-	HgSetFillColor(HG_BLACK);
-	HgBoxFill(0,0,360,750,0);
-	HgSetFillColor(HG_LGRAY);
-	HgBoxFill(0,0,360,30,0);
-	HgBoxFill(0,0,30,750,0);
-	HgBoxFill(330,0,30,750,0);
+	HgWSetFillColor(layerID,HG_SKYBLUE);
+	HgWBoxFill(layerID,0,0,600,750,0);
+	HgWSetFillColor(layerID,HG_BLACK);
+	HgWBoxFill(layerID,0,0,360,750,0);
+	HgWSetFillColor(layerID,HG_LGRAY);
+	HgWBoxFill(layerID,0,0,360,30,0);
+	HgWBoxFill(layerID,0,0,30,750,0);
+	HgWBoxFill(layerID,330,0,30,750,0);
 }
 
 //画面の初期化
-void InitialScreen(void){
+void Initialfield(void){
 	int x,y;
 	for (x = 0; x < WIDTH; x++) {
 		for (y = 0; y < HEIGHT; y++) {
@@ -143,38 +161,38 @@ void drawingBlock(void) {
 			if (field[x][y] >= 1) {
 				switch (field[x][y]) {
 					case 1:
-						HgSetFillColor(HG_SKYBLUE);
+						HgWSetFillColor(layerID,HG_SKYBLUE);
 						break;
 					case 2:
-						HgSetFillColor(HG_RED);
+						HgWSetFillColor(layerID,HG_RED);
 						break;
 					case 3:
-						HgSetFillColor(HG_PURPLE);
+						HgWSetFillColor(layerID,HG_PURPLE);
 						break;
 					case 4:
-						HgSetFillColor(HG_GREEN);
+						HgWSetFillColor(layerID,HG_GREEN);
 						break;
 					case 5:
-						HgSetFillColor(HG_BLUE);
+						HgWSetFillColor(layerID,HG_BLUE);
 						break;
 					case 6:
-						HgSetFillColor(HG_PINK);
+						HgWSetFillColor(layerID,HG_PINK);
 						break;
 					case 7:
-						HgSetFillColor(HG_YELLOW);
+						HgWSetFillColor(layerID,HG_YELLOW);
 						break;
 					case 8:
-						HgSetFillColor(HG_ORANGE);
+						HgWSetFillColor(layerID,HG_ORANGE);
 						break;
 				}
-				HgBoxFill(30 * (x+1), 30 * (y+1), 30, 30, 1);
+				HgWBoxFill(layerID, (30+1) * x, (30+1) * y, 30, 30, 1);
 			}
 		}
 	}
 }
 //ブロック生成関数
 void create_block(void) {
-	int typeB;
+	int typeB;   //ブロックの種類
 	int i,j;
 
 	srand(time(NULL));
@@ -190,7 +208,7 @@ void create_block(void) {
 	//field にブロックを読み込む
 	for (i = 0; i < BLOCK_SIZE; i++) {
 		for (j = 0; j < BLOCK_SIZE; j++) { //ブロックを定義した形に出力
-			field[i+FIRST_X][j+FIRST_Y] =  block[i][j]; //ブロックの初期座標に入力
+			field[i+blockx][j+blocky] =  block[i][j]; //ブロックの初期座標に入力
 		}
 	}
 	for (i = 0; i < WIDTH; i++) {    // 配列確認用
@@ -208,13 +226,13 @@ void moveBlock(int nextx, int nexty) {
 	//現在の位置を消去
 	for (x = 0; x < BLOCK_SIZE; x++) {
 		for (y = 0; y < BLOCK_SIZE; y++) {
-			field[x+FIRST_X][y+FIRST_Y] = 0;
+			field[x+blockx][y+blocky] -= block[x][y];
 		}
 	}
 	//次の場所の描画
 	for (x = 0; x < BLOCK_SIZE; x++) {
 		for (y = 0; y < BLOCK_SIZE; y++) {
-			field[x+nextx][y+nexty] = block[x][y];
+			field[x+nextx][y+nexty] += block[x][y];
 		}
 	}
 }
@@ -222,6 +240,7 @@ void moveBlock(int nextx, int nexty) {
 //衝突判定
 bool collision(int nextx, int nexty) {
 	int x,y;
+
 	for (x = 0; x < BLOCK_SIZE; x++) {
 		for (y = 0; y < BLOCK_SIZE; y++) {
 			//ブロックである
@@ -229,12 +248,12 @@ bool collision(int nextx, int nexty) {
 				//移動した後の座標が 0 以外なら移動できない
 				if (field[x+nextx][y+nexty] != 0) {
 					//ブロックの固定
-					for (x = 0; x < BLOCK_SIZE; x++) {
-						for (y = 0; y < BLOCK_SIZE; y++) {
-							field[blockx][blocky] = block[x][y];
+					for (int i = 0; i < BLOCK_SIZE; i++) {
+						for (int j = 0; j < BLOCK_SIZE; j++) {
+							field[i+FIRST_X][j+FIRST_Y] = block[i][j];
 						}
 					}
-					return false;
+					return false;  //移動できない
 				}else{
 					break;
 				}
@@ -280,6 +299,19 @@ void TurnBlock() {
 
 //ブロック操作関数
 void control(int key) {
-	//hgevent *event;
-
+	if (key == HG_U_ARROW) {
+		TurnBlock();
+	}else if (key == HG_L_ARROW) {
+		if (collision(blockx-1, blocky)) {
+			moveBlock(blockx-1, blocky);
+		}
+	}else if (key == HG_R_ARROW) {
+		if (collision(blockx+1, blocky)) {
+			moveBlock(blockx+1, blocky);
+		}
+	}else if (key == HG_U_ARROW) {
+		if (collision(blockx, blocky-1)) {
+			moveBlock(blockx, blocky-1);
+		}
+	}
 }
