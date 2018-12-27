@@ -115,13 +115,14 @@ int main() {
 			blocky--;
 			HgSleep(0.5);
 		}else{
-			 blockx = FIRST_X;
-			 blocky = FIRST_Y;
-			 create_block();
-			 drawingBlock();
-			 HgSleep(1.0);
-		 }
-	 }
+			SetBLock();
+			blockx = FIRST_X;
+		 	blocky = FIRST_Y;
+		 	create_block();
+		 	drawingBlock();
+		 	HgSleep(1.0);
+		}
+	}
 	HgGetChar();
     HgClose();
 	return 0;
@@ -247,14 +248,14 @@ bool collision(int nextx, int nexty) {
 			if (block[x][y] >= 1) {
 				//移動した後の座標が 0 以外なら移動できない
 				if (field[x+nextx][y+nexty] != 0) {
+					return false;  //移動できない
+				}else{
 					//ブロックの固定
-					for (int i = 0; i < BLOCK_SIZE; i++) {
+					/*for (int i = 0; i < BLOCK_SIZE; i++) {
 						for (int j = 0; j < BLOCK_SIZE; j++) {
 							field[i+FIRST_X][j+FIRST_Y] = block[i][j];
 						}
-					}
-					return false;  //移動できない
-				}else{
+					}*/
 					break;
 				}
 			}
@@ -263,8 +264,19 @@ bool collision(int nextx, int nexty) {
 	return true;  //移動できる
 }
 
+//固定用配列
+void SetBLock(void) {
+	int x,y;
+
+	for (x = 0; x < BLOCK_SIZE; x++) {
+		for (y = 0; y < BLOCK_SIZE; y++) {
+			field[x+FIRST_X][y+FIRST_Y] = block[x][y];
+		}
+	}
+}
+
 //回転用関数
-void TurnBlock() {
+void TurnBlock(void) {
 	int strage[BLOCK_SIZE][BLOCK_SIZE];  //ブロック保存用配列
 	int x,y;
 
@@ -309,7 +321,7 @@ void control(int key) {
 		if (collision(blockx+1, blocky)) {
 			moveBlock(blockx+1, blocky);
 		}
-	}else if (key == HG_U_ARROW) {
+	}else if (key == HG_D_ARROW) {
 		if (collision(blockx, blocky-1)) {
 			moveBlock(blockx, blocky-1);
 		}
