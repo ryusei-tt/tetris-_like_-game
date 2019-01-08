@@ -32,9 +32,11 @@ void deleteLines(int line); //下の行を消す
 void StrageBlock(void); //ブロックの保存
 
 int field[WIDTH][HEIGHT];
+int board[WIDTH][HEIGHT];
 int blockx = FIRST_X; //ブロックの初期x座標
 int blocky = FIRST_Y; //ブロックの初期y座標
 int block[BLOCK_SIZE][BLOCK_SIZE];
+int sumline = 0;
 int blockform[TYPE][BLOCK_SIZE][BLOCK_SIZE] = {
 	//長方形
 	{{0, 1, 0, 0},
@@ -90,7 +92,7 @@ int main() {
 	int key;
 
 	windowID = HgOpen(600,750);
-	layers = HgWAddDoubleLayer(windowID);  // ダブルバッファを作る
+	layers = HgWAddDoubleLayer(windowID);
 	HgWSetEventMask(windowID, HG_KEY_DOWN);
 
 	GameField();
@@ -104,18 +106,18 @@ int main() {
         HgLClear(layerID);
 		GameField();
 		drawingBlock();
-
 		event = HgEventNonBlocking();
 
-		if (event != NULL) {
-			key = event->ch;
+		if (event != NULL) {  //キー入力
+            key = event->ch;
 		    control(key);
 	    }
 		if (collision(blockx, blocky-1)) {
 			moveBlock(blockx, blocky-1);
-			blocky--;
-			HgSleep(0.3);
+			//blocky--;
+			HgSleep(0.5);
 		}else{
+			SetBLock();
 			checkLine();
 			blockx = FIRST_X;
 		 	blocky = FIRST_Y;
@@ -145,9 +147,9 @@ void Initialfield(void){
 	int x,y;
 	for (x = 0; x < WIDTH; x++) {
 		for (y = 0; y < HEIGHT; y++) {
-			field[x][y] = 0;
+			field[x][y] = board[x][y] = 0;
 			if (x == 0 || x == 11 || y == 0) {
-				field[x][y] = WALL;
+				field[x][y] = board[x][y] = WALL;
 			}
 		}
 	}
@@ -186,7 +188,7 @@ void drawingBlock(void) {
 						HgWSetFillColor(layerID,HG_ORANGE);
 						break;
 				}
-				HgWBoxFill(layerID, (30+1) * x, (30+1) * y, 30, 30, 1);
+				HgWBoxFill(layerID, 30 * x, 30 * y, 30, 30, 1);
 			}
 		}
 	}
@@ -209,7 +211,8 @@ void create_block(void) {
 	//field にブロックを読み込む
 	for (i = 0; i < BLOCK_SIZE; i++) {
 		for (j = 0; j < BLOCK_SIZE; j++) { //ブロックを定義した形に出力
-			field[i+blockx][j+blocky] =  block[i][j]; //ブロックの初期座標に入力
+			//ブロックの初期座標に入力
+			field[i+blockx][j+blocky] = board[i+blockx][j+blocky] + block[i][j];
 		}
 	}
 	for (i = 0; i < WIDTH; i++) {    // 配列確認用
@@ -223,16 +226,22 @@ void create_block(void) {
 //ブロックの移動関数
 void moveBlock(int nextx, int nexty) {
 	int x,y;
+
 	//現在の位置を消去
 	for (x = 0; x < BLOCK_SIZE; x++) {
 		for (y = 0; y < BLOCK_SIZE; y++) {
 			field[x+blockx][y+blocky] -= block[x][y];
 		}
 	}
+
+	//座標更新
+	blockx = nextx;
+	blocky = nexty;
+
 	//次の場所の描画
 	for (x = 0; x < BLOCK_SIZE; x++) {
 		for (y = 0; y < BLOCK_SIZE; y++) {
-			field[x+nextx][y+nexty] += block[x][y];
+			field[x+blockx][y+blocky] += block[x][y];
 		}
 	}
 }
@@ -243,16 +252,10 @@ bool collision(int nextx, int nexty) {
 
 	for (x = 0; x < BLOCK_SIZE; x++) {
 		for (y = 0; y < BLOCK_SIZE; y++) {
-			//ブロックである
+			//ブロックであるとき
 			if (block[x][y] >= 1) {
 				//移動した後の座標が 0 以外なら移動できない
-				if (field[x+nextx][y+nexty] != 0) {
-					//ブロックの固定
-					/*for (int i = 0; i < BLOCK_SIZE; i++) {
-						for (int j = 0; j < BLOCK_SIZE; j++) {
-							field[i+blockx][j+blocky] = block[i][j];
-						}
-					}*/
+				if (board[x+nextx][y+nexty] != 0) {
 					return false;  //移動できない
 				}else{
 					break;
@@ -260,7 +263,18 @@ bool collision(int nextx, int nexty) {
 			}
 		}
 	}
-	return true;  //移動できる
+	return true;  //移動した後が0なら移動できる
+}
+
+//固定用配列
+void SetBLock(void) {
+	int x,y;
+
+	for (x = 0; x < BLOCK_SIZE; x++) {
+		for (y = 0; y < BLOCK_SIZE; y++) {
+			board[x][y] = field[x][y];
+		}
+	}
 }
 
 //回転用関数
@@ -305,17 +319,17 @@ void control(int key) {
 		if (collision(blockx-1, blocky)) { //移動可能なら左に移動
 			printf("debag\n");
 			moveBlock(blockx-1, blocky);
-			blockx--;
+			//blockx--;
 		}
 	}else if (key == HG_R_ARROW) {
 		if (collision(blockx+1, blocky)) { //移動可能なら右に移動
 			moveBlock(blockx+1, blocky);
-			blockx++;
+			//blockx++;
 		}
 	}else if (key == HG_D_ARROW) {
 		if (collision(blockx, blocky-1)) { //移動可能なら下に移動
 			moveBlock(blockx, blocky-1);
-			blocky--;
+			//blocky--;
 		}
 	}
 }
@@ -329,7 +343,7 @@ void checkLine(void) {
 	for (y = 1; y < HEIGHT-1; y++) {
 		check = true;
 		for (x = 1; x < WIDTH-1; x++) {
-			if (field[x][y] == 0) {
+			if (board[x][y] == 0) {
 				check = false;
 				break;
 			}
@@ -339,6 +353,7 @@ void checkLine(void) {
 			line++;
 		}
 	}
+	linesum += line; //消したラインを加算
 }
 
 //列の消去と１段下にずらす
@@ -347,13 +362,20 @@ void deleteLines(int line) {
 
 	//横１列を消去
 	for (x = 1; x < WIDTH-1; x++) {
-		field[x][line] = 0;
+		board[x][line] = 0;
 	}
 
 	//全体を一段ずらす
 	for (y = line; y > 0; y--) {
 		for (x = 1; x < WIDTH-1; x++) {
-			field[x][y] = field[x][y-1];
+			board[x][y] = board[x][y-1];
+		}
+	}
+
+	//boardをfieldに反映する
+	for (x = 0; x < WIDTH; x++) {
+		for (y = 0; y < HEIGHT; y++) {
+			field[x][y] = board[x][y];
 		}
 	}
 }
