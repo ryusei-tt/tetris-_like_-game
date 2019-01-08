@@ -26,8 +26,9 @@ void moveBlock(int nextx, int nexty); //ブロックの移動
 void control(int key);  //ブロックのコントロール
 bool collision(int nextx, int nexty); //ブロックの衝突(移動先が空白でなければ移動できないなど)
 void SetBLock(void);    //ブロックの固定
-void TurnBlock();   //ブロックの回転
-void DeletBottom(void); //下の行を消す
+void TurnBlock(void);   //ブロックの回転
+void checkLine(void);   //ラインの判定
+void deleteLines(int line); //下の行を消す
 void StrageBlock(void); //ブロックの保存
 
 int field[WIDTH][HEIGHT];
@@ -90,7 +91,7 @@ int main() {
 
 	windowID = HgOpen(600,750);
 	layers = HgWAddDoubleLayer(windowID);  // ダブルバッファを作る
-	HgSetEventMask(HG_KEY_DOWN);
+	HgWSetEventMask(windowID, HG_KEY_DOWN);
 
 	GameField();
 	Initialfield();
@@ -100,26 +101,25 @@ int main() {
 
 	while (1) {
 		layerID = HgLSwitch(&layers);
-		event = HgEventNonBlocking();
-
         HgLClear(layerID);
 		GameField();
-		if (event != NULL) {
-		   key = event->ch;
-		   control(key);
-	   }
+		drawingBlock();
 
-		if (collision(blockx, blocky-1) && blocky >= 1) {
+		event = HgEventNonBlocking();
+
+		if (event != NULL) {
+			key = event->ch;
+		    control(key);
+	    }
+		if (collision(blockx, blocky-1)) {
 			moveBlock(blockx, blocky-1);
-			drawingBlock();
 			blocky--;
-			HgSleep(0.5);
+			HgSleep(0.3);
 		}else{
-			SetBLock();
+			checkLine();
 			blockx = FIRST_X;
 		 	blocky = FIRST_Y;
 		 	create_block();
-		 	drawingBlock();
 		 	HgSleep(1.0);
 		}
 	}
@@ -223,7 +223,6 @@ void create_block(void) {
 //ブロックの移動関数
 void moveBlock(int nextx, int nexty) {
 	int x,y;
-
 	//現在の位置を消去
 	for (x = 0; x < BLOCK_SIZE; x++) {
 		for (y = 0; y < BLOCK_SIZE; y++) {
@@ -248,31 +247,20 @@ bool collision(int nextx, int nexty) {
 			if (block[x][y] >= 1) {
 				//移動した後の座標が 0 以外なら移動できない
 				if (field[x+nextx][y+nexty] != 0) {
-					return false;  //移動できない
-				}else{
 					//ブロックの固定
 					/*for (int i = 0; i < BLOCK_SIZE; i++) {
 						for (int j = 0; j < BLOCK_SIZE; j++) {
-							field[i+FIRST_X][j+FIRST_Y] = block[i][j];
+							field[i+blockx][j+blocky] = block[i][j];
 						}
 					}*/
+					return false;  //移動できない
+				}else{
 					break;
 				}
 			}
 		}
 	}
 	return true;  //移動できる
-}
-
-//固定用配列
-void SetBLock(void) {
-	int x,y;
-
-	for (x = 0; x < BLOCK_SIZE; x++) {
-		for (y = 0; y < BLOCK_SIZE; y++) {
-			field[x+FIRST_X][y+FIRST_Y] = block[x][y];
-		}
-	}
 }
 
 //回転用関数
@@ -311,19 +299,61 @@ void TurnBlock(void) {
 
 //ブロック操作関数
 void control(int key) {
-	if (key == HG_U_ARROW) {
+	if (key == HG_U_ARROW) { //回転
 		TurnBlock();
 	}else if (key == HG_L_ARROW) {
-		if (collision(blockx-1, blocky)) {
+		if (collision(blockx-1, blocky)) { //移動可能なら左に移動
+			printf("debag\n");
 			moveBlock(blockx-1, blocky);
+			blockx--;
 		}
 	}else if (key == HG_R_ARROW) {
-		if (collision(blockx+1, blocky)) {
+		if (collision(blockx+1, blocky)) { //移動可能なら右に移動
 			moveBlock(blockx+1, blocky);
+			blockx++;
 		}
 	}else if (key == HG_D_ARROW) {
-		if (collision(blockx, blocky-1)) {
+		if (collision(blockx, blocky-1)) { //移動可能なら下に移動
 			moveBlock(blockx, blocky-1);
+			blocky--;
+		}
+	}
+}
+
+//列の消去判定
+void checkLine(void) {
+	int line = 0;
+	bool check;
+	int x,y;
+
+	for (y = 1; y < HEIGHT-1; y++) {
+		check = true;
+		for (x = 1; x < WIDTH-1; x++) {
+			if (field[x][y] == 0) {
+				check = false;
+				break;
+			}
+		}
+		if (check == true) {  //横一列が揃っていたら
+			deleteLines(y);
+			line++;
+		}
+	}
+}
+
+//列の消去と１段下にずらす
+void deleteLines(int line) {
+	int x,y;
+
+	//横１列を消去
+	for (x = 1; x < WIDTH-1; x++) {
+		field[x][line] = 0;
+	}
+
+	//全体を一段ずらす
+	for (y = line; y > 0; y--) {
+		for (x = 1; x < WIDTH-1; x++) {
+			field[x][y] = field[x][y-1];
 		}
 	}
 }
